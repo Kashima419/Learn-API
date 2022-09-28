@@ -9,7 +9,7 @@ delta = b*b-4*a*c
 print('delta =',delta)
 
 if a == 0:
-	print('khong phai phuong trinh bac 2, hay nhap a>0')
+	print('khong phai phuong trinh bac 2, hay nhap a#0')
 elif a!=0 and delta < 0:
 	print('phuong trinh vo nghiem')
 elif a!=0 and delta == 0:
