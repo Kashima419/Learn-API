@@ -1,3 +1,5 @@
+import math
+from math import *
 print("Nhap gia tri a: ")
 a = int(input())
 print("Nhap gia tri b: ")
