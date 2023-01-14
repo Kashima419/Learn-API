@@ -1,0 +1,36 @@
+import clr
+clr.AddReference('RevitAPI')
+from Autodesk.Revit.DB import *
+
+clr.AddReference('RevitServices')
+import RevitServices
+from RevitServices.Persistence import DocumentManager
+
+doc = DocumentManager.Instance.CurrentDBDocument
+
+filter_category = ElementCategoryFilter(BuiltInCategory.OST_MEPSpaces)
+Spaces = FilteredElementCollector(doc).WherePasses(filter_category).ToElements()
+
+Placed = []
+Unplaced = []
+NotEnclosedAndRedundant = []
+NotEnclosed = []
+Redundant = []
+
+for i in Spaces:
+	if i.Location == None:
+		Unplaced.append(i)
+	else:
+		if i.Area == 0:
+			NotEnclosedAndRedundant.append(i)
+		else:
+			Placed.append(i)
+
+for i in NotEnclosedAndRedundant:
+	for j in [i.GetBoundarySegments(SpatialElementBoundaryOptions())]:
+		if len(j) == 0:
+			NotEnclosed.append(i)
+		else:
+			Redundant.append(i)
+
+OUT = Placed, Unplaced, NotEnclosed, Redundant
