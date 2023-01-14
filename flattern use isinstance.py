@@ -7,3 +7,8 @@ for i in a:
     else:
         flat.append(i)
 print(flat)
+
+#Convert input to list
+def ptslist(obj1):
+    if hasattr(obj1,"__iter__"): return obj1
+    else: return [obj1]
