@@ -1,0 +1,9 @@
+lst = ["200x400","400x600","1200x400","250x400","120x400","200x700"]
+
+lst1 = []
+lst2 = []
+
+for i in lst:
+	lst1.append(int(i[:i.index("x")]))
+	lst2.append(int(i[i.index("x")+1::]))
+print(lst1,lst2)
