@@ -1,0 +1,158 @@
+# coding: UTF-8
+import clr
+
+import System
+from System.Collections.Generic import *
+clr.AddReference('RevitAPIUI')
+clr.AddReference('RevitAPI')
+import Autodesk
+from Autodesk.Revit.DB import *
+from Autodesk.Revit.UI import *
+
+doc = __revit__.ActiveUIDocument.Document
+uidoc = __revit__.ActiveUIDocument
+
+all_Walls = FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Walls).WhereElementIsNotElementType().ToElements()
+W_Comments = []
+walls_not_para = []
+for i in all_Walls:
+	if i.LookupParameter("Comments").AsString() == None:
+		walls_not_para.append(i)
+for i in all_Walls:
+    if i.LookupParameter("Comments").AsString() != None:
+        W_Comments.append(i.LookupParameter("Comments").AsString())
+    else:
+        W_Comments.append("not yet input parameter")
+
+uni = list(set(W_Comments))
+
+clr.AddReference('System.Windows.Forms')
+clr.AddReference('System.Drawing')
+import System.Drawing
+import System.Windows.Forms
+from System.Drawing import *
+from System.Windows.Forms import *
+
+class MainForm(Form):
+	def __init__(self):
+		self.InitializeComponent()
+	def InitializeComponent(self):
+		self._button1 = System.Windows.Forms.Button()
+		self._button2 = System.Windows.Forms.Button()
+		self._textBox1 = System.Windows.Forms.Label()
+		self._textBox2 = System.Windows.Forms.Label()
+		self.comboBox1 = System.Windows.Forms.ComboBox()
+		self._picktureBox1 = System.Windows.Forms.PictureBox()
+		self.toolTip1 = System.Windows.Forms.ToolTip()
+		self.toolTip1.SetToolTip(self._button1, "Select Elements by parameter")
+		self.toolTip1.SetToolTip(self._button2, "Close this form")
+		self.SuspendLayout()
+		# 
+		# button1
+		# 
+		self._button1.Location = System.Drawing.Point(200, 210)
+		self._button1.Name = "button1"
+		self._button1.Size = System.Drawing.Size(75, 23)
+		self._button1.TabIndex = 0
+		self._button1.Text = "Select"
+		self._button1.UseVisualStyleBackColor = True
+		self._button1.Click += self.Button1Click
+		# 
+		# button2
+		# 
+		self._button2.Location = System.Drawing.Point(100, 210)
+		self._button2.Name = "button1"
+		self._button2.Size = System.Drawing.Size(75, 23)
+		self._button2.TabIndex = 0
+		self._button2.Text = "Cancel"
+		self._button2.UseVisualStyleBackColor = True
+		self._button2.Click += self.Button2Click
+		# 
+		# textBox1
+		# 
+		self._textBox1.Location = System.Drawing.Point(60, 78)
+		self._textBox1.Name = "textBox1"
+		self._textBox1.Text = "Filter Comments of Walls:"
+		self._textBox1.Size = System.Drawing.Size(210, 20)
+		self._textBox1.TabIndex = 1
+		# 
+		# textBox2
+		# 
+		self._textBox2.Location = System.Drawing.Point(60, 125)
+		self._textBox2.Name = "textBox1"
+		self._textBox2.Size = System.Drawing.Size(150, 20)
+		self._textBox2.TabIndex = 1
+		self._textBox2.TextAlign = System.Drawing.ContentAlignment.MiddleCenter
+		# 
+		# textBox2
+		# 
+		self.comboBox1.FormattingEnabled = True
+		self.comboBox1.Location = System.Drawing.Point(60, 100)
+		self.comboBox1.Name = "comboBox1"
+		self.comboBox1.Size = System.Drawing.Size(150, 20)
+		self.comboBox1.TabIndex = 5
+		self.comboBox1.Text = "Let's Select parameter"
+		self.comboBox1.Items.AddRange(System.Array[System.Object](uni))
+		# 
+		# picktureBox1
+		# 
+		self._picktureBox1.Image = System.Drawing.Image.FromFile(r"D:\01_個人データ\Dynamo\Revit API\pythoncsharp.extension\PyCSharp.tab\Python.panel\Selector.pushbutton\logo.png")
+		self._picktureBox1.Location = System.Drawing.Point(10, 170)
+		self._picktureBox1.Name = "picktureBox1"
+		self._picktureBox1.Size = System.Drawing.Size(65, 65)
+		self._picktureBox1.TabIndex = 7
+		self._picktureBox1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage
+
+		from System import IntPtr
+		bmp = Bitmap.FromFile(r"D:\01_個人データ\Dynamo\Revit API\pythoncsharp.extension\PyCSharp.tab\Python.panel\Selector.pushbutton\tim.png") #need set path is folder
+		thumb = bmp.GetThumbnailImage(64, 64, bmp.GetThumbnailImageAbort,IntPtr.Zero)
+		icon = Icon.FromHandle(thumb.GetHicon())
+		# 
+		# MainForm
+		# 
+		self.ClientSize = System.Drawing.Size(284, 261)
+		self.Controls.Add(self.comboBox1)
+		self.Controls.Add(self._textBox1)
+		self.Controls.Add(self._textBox2)
+		self.Controls.Add(self._button1)
+		self.Controls.Add(self._button2)
+		self.Controls.Add(self._picktureBox1)
+		self.MaximizeBox = False
+		self.MinimizeBox = False
+		self.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle
+		self.Name = "MainForm"
+		self.Text = "Select Walls Elements by parameter"
+		self.Icon = icon
+		self.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen
+		self.ResumeLayout(False)
+		self.PerformLayout()
+
+	def Button1Click(self, sender, e):
+		self.value = str(self.comboBox1.SelectedItem)
+		select_wall = []
+		for i in all_Walls:
+			if i.LookupParameter("Comments").AsString() == self.value:
+				select_wall.append(i)
+		
+		#for i in walls_not_para:
+			#if i.LookupParameter("Comments").AsString() == "":
+				#select_wall.append(i)
+
+		elementIdList = List[ElementId]()
+		for i in select_wall:
+			elementIdList.Add(i.Id)
+
+		uidoc.Selection.SetElementIds(elementIdList)
+		
+		if self.comboBox1.Text == "Let's Select parameter":
+			self._textBox2.Text = "Please select parameter!!!"
+			self._textBox2.ForeColor = System.Drawing.Color.Red
+		else:
+			self._textBox2.Text = "Selecting: " + str(len(elementIdList))
+			self._textBox2.ForeColor = System.Drawing.Color.Blue
+
+	def Button2Click(self, sender, e):
+		self.Close()
+
+form = MainForm()
+Application.Run(form)
