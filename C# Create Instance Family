@@ -1,0 +1,57 @@
+using Autodesk.Revit.Attributes;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.ExternalService;
+using Autodesk.Revit.UI;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using Autodesk.Revit.DB.Structure;
+using System.Security.Cryptography;
+
+namespace Create_Column1
+{
+    [Transaction(TransactionMode.Manual)]
+    public class create_intance : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message,
+ ElementSet elements)
+        {
+            UIApplication uiapp = commandData.Application;
+            UIDocument uidoc = uiapp.ActiveUIDocument;
+            Document doc = uidoc.Document;
+
+            Transaction t1 = new Transaction(doc, "Tao Cot");
+            t1.Start();
+
+            List<int> xpoint = new List<int>() { 10, 20, 30, 40, 50, 60, 70 };
+
+            List<XYZ> mylistpoint = new List<XYZ>();
+
+            foreach(var i in xpoint)
+            {
+                mylistpoint.Add(new XYZ(i,0,0));
+            }
+
+            FamilySymbol mySymbol = new FilteredElementCollector(doc).
+OfClass(typeof(FamilySymbol)).
+WhereElementIsElementType().Cast<FamilySymbol>().First(i => i.Name == "G1");
+
+//Lambda with familyName and Type
+//FamilySymbol mySymbol = new FilteredElementCollector(doc).
+                OfClass(typeof(FamilySymbol)).
+                WhereElementIsElementType().Cast<FamilySymbol>().First(i => i.FamilyName == "Column1" && i.Name == "C1");
+
+            foreach (var i in mylistpoint)
+            {
+                FamilyInstance newT = doc.Create.NewFamilyInstance(i, mySymbol,
+ StructuralType.NonStructural);
+            }
+
+            t1.Commit();
+
+            return Result.Succeeded;
+        }
+    }
+}
