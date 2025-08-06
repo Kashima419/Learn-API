@@ -1,0 +1,40 @@
+using Autodesk.Revit.Attributes;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows;
+
+namespace Sheet
+{
+    [Transaction(TransactionMode.Manual)]
+    public class ViewGotoSheet : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            UIApplication uiapp = commandData.Application;
+            UIDocument uidoc = uiapp.ActiveUIDocument;
+            Document doc = uidoc.Document;
+
+            try
+            {
+                string getSheetnumberCurrentview = doc.ActiveView.get_Parameter(BuiltInParameter.VIEWER_SHEET_NUMBER).AsValueString();
+
+                ////find sheet based sheet number
+                ViewSheet findSheet = new FilteredElementCollector(doc).OfClass(typeof(ViewSheet)).
+                    Cast<ViewSheet>().First(x => x.SheetNumber == getSheetnumberCurrentview);
+
+                uidoc.ActiveView = findSheet;
+                return Result.Succeeded;
+            }
+            catch(Exception ex)
+            {
+                MessageBox.Show("シートが見つかりませんでした。","通知");
+                return Result.Failed;
+            }
+        }
+    }
+}
