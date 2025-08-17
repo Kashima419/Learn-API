@@ -1,0 +1,138 @@
+using Autodesk.Revit.Attributes;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Structure;
+using Autodesk.Revit.UI;
+using Autodesk.Revit.UI.Selection;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using TaskDialog = Autodesk.Revit.UI.TaskDialog;
+
+namespace This_is_Net8
+{
+    [Transaction(TransactionMode.Manual)]
+    internal class ColumnRebarNew33 : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            UIApplication uiapp = commandData.Application;
+            UIDocument uidoc = uiapp.ActiveUIDocument;
+            Document doc = uidoc.Document;
+
+            // Chọn 1 cột
+            Reference pickedRef = uidoc.Selection.PickObject(ObjectType.Element, "Chọn cột");
+            FamilyInstance column = doc.GetElement(pickedRef) as FamilyInstance;
+            // Lấy thông số cột
+            var bbox = column.get_BoundingBox(null);
+            double zStart = bbox.Min.Z, zEnd = bbox.Max.Z;
+            double height = zEnd - zStart;
+
+            double cover = 50 / 304.8;
+            double spacing = 150 / 304.8;
+            int numberOfBars = (int)Math.Floor((height - 2 * cover) / spacing) + 1;
+            double rebarD = 10 / 304.8;
+
+            Transform columnTransform = column.GetTransform();
+            double halfX = column.Symbol.LookupParameter("b").AsDouble() / 2;
+            double halfY = column.Symbol.LookupParameter("h").AsDouble() / 2;
+
+            List<XYZ> localPoints = new List<XYZ>();
+            XYZ p1 = new XYZ(-halfX + cover + rebarD / 2, halfY - cover - rebarD / 2, bbox.Min.Z);
+            XYZ p2 = new XYZ(halfX - cover - rebarD / 2, halfY - cover - rebarD / 2, bbox.Min.Z);
+            XYZ p3 = new XYZ(halfX - cover - rebarD / 2, -halfY + cover + rebarD / 2, bbox.Min.Z);
+            XYZ p4 = new XYZ(-halfX + cover + rebarD / 2, -halfY + cover + rebarD / 2, bbox.Min.Z);
+            localPoints.Add(p1);
+            localPoints.Add(p2);
+            localPoints.Add(p3);
+            localPoints.Add(p4);
+
+            // Lấy RebarShape (vd: "M_T1"), tùy loại mới vẽ được
+            var stirrupShape = new FilteredElementCollector(doc)
+                .OfClass(typeof(RebarShape)).Cast<RebarShape>()
+                .FirstOrDefault(s => s.Name == "M_T1");
+            // Lấy loại thép đai (BarType)
+            var stirrupBarType = new FilteredElementCollector(doc)
+                .OfClass(typeof(RebarBarType)).Cast<RebarBarType>()
+                .FirstOrDefault(bt => bt.Name == "10M");
+
+            RebarHookType hook = new FilteredElementCollector(doc)
+                .OfClass(typeof(RebarHookType))
+                .Cast<RebarHookType>()
+                .FirstOrDefault(s => s.Name == "Stirrup/Tie - 90 deg.");
+
+            var MainShape = new FilteredElementCollector(doc)
+                .OfClass(typeof(RebarShape)).Cast<RebarShape>()
+                .FirstOrDefault(s => s.Name == "M_00");
+            var mainBarType = new FilteredElementCollector(doc)
+                .OfClass(typeof(RebarBarType)).Cast<RebarBarType>()
+                .FirstOrDefault(bt => bt.Name == "32M");
+
+            double MainBarD = 32 / 304.8;
+            XYZ m1s = new XYZ(p1.X + (MainBarD + rebarD) / 2, p1.Y - (MainBarD + rebarD) / 2, p1.Z);
+            XYZ m2s = new XYZ(p2.X - (MainBarD + rebarD) / 2, p2.Y - (MainBarD + rebarD) / 2, p2.Z);
+            XYZ m3s = new XYZ(p3.X - (MainBarD + rebarD) / 2, p3.Y + (MainBarD + rebarD) / 2, p3.Z);
+            XYZ m4s = new XYZ(p4.X + (MainBarD + rebarD) / 2, p4.Y + (MainBarD + rebarD) / 2, p4.Z);
+            List<XYZ> MainPts = new List<XYZ>();
+            MainPts.Add(m1s);
+            MainPts.Add(m2s);
+            MainPts.Add(m3s);
+            MainPts.Add(m4s);
+
+            using (var tx = new Transaction(doc, "Vẽ đai cột với layout"))
+            {
+                tx.Start();
+                foreach (XYZ p in MainPts)
+                {
+                    Plane plane = Plane.CreateByNormalAndOrigin(XYZ.BasisZ, columnTransform.OfPoint(p3));
+                    Arc circle = Arc.Create(plane, 1, 0, 2 * Math.PI);
+                    doc.Create.NewDetailCurve(doc.ActiveView, circle);
+
+                    // Chuyển local → global
+                    XYZ globalPt = columnTransform.OfPoint(p);
+                    // Đường line thép chủ (theo phương Z)
+                    Line cv = Line.CreateBound(globalPt, globalPt + new XYZ(0, 0, height));
+                    Rebar mainBar = Rebar.CreateFromCurvesAndShape(
+                    doc,
+                    MainShape,
+                    mainBarType,
+                    null,
+                    null,
+                    column,
+                    XYZ.BasisY, // pháp tuyến mặt phẳng vẽ
+                    new List<Curve>() { cv },
+                    RebarHookOrientation.Left,
+                    RebarHookOrientation.Left
+                    );
+                }
+
+                // Tạo 1 thanh đai
+                var curves = new List<Curve>
+                {
+                    Line.CreateBound(columnTransform.OfPoint(p1), columnTransform.OfPoint(p2)),
+                    Line.CreateBound(columnTransform.OfPoint(p2), columnTransform.OfPoint(p3)),
+                    Line.CreateBound(columnTransform.OfPoint(p3), columnTransform.OfPoint(p4)),
+                    Line.CreateBound(columnTransform.OfPoint(p4), columnTransform.OfPoint(p1))
+                };
+                var rebar = Rebar.CreateFromCurvesAndShape(
+                    doc,
+                    stirrupShape,
+                    stirrupBarType,
+                    hook,
+                    hook,
+                    column,
+                    XYZ.BasisZ,
+                    curves,
+                    RebarHookOrientation.Left,
+                    RebarHookOrientation.Left
+                );
+                // Apply layout spacing
+                var accessor = rebar.GetShapeDrivenAccessor();
+                accessor.SetLayoutAsNumberWithSpacing(numberOfBars, spacing, true, true, true);
+                tx.Commit();
+            }
+            return Result.Succeeded;
+        }
+    }
+}
